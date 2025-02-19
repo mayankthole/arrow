@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smooth Arrow Animation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Segoe UI', sans-serif;
+            overflow-x: hidden;
+            height: 500vh; /* Very tall to allow for slower scrolling */
+        }
+        
+        .animation-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+        
+        /* Bow styling */
+        .bow-container {
+            position: absolute;
+            left: 10%;
+            height: 300px;
+            width: 80px;
+            transform: rotate(0deg);
+        }
+        
+        .bow {
+            height: 100%;
+            width: 100%;
+            position: relative;
+        }
+        
+        .bow-body {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            height: 100%;
+            width: 10px;
+            background: linear-gradient(90deg, #4a2c0f, #8b5a2b, #4a2c0f);
+            border-radius: 5px;
+            transform: translateX(-50%);
+        }
+        
+        .bow-string {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            background-color: #d4d4d8;
+            border-radius: 1px;
+            transform: translateX(-50%);
+            box-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        
+        .bow-string-pulled {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            height: 100%;
+            width: 2px;
+            opacity: 0;
+        }
+        
+        .bow-string-pulled::before, 
+        .bow-string-pulled::after {
+            content: "";
+            position: absolute;
+            width: 2px;
+            background-color: #d4d4d8;
+            left: 0;
+        }
+        
+        .bow-string-pulled::before {
+            top: 0;
+            height: calc(50% - 5px);
+            transform-origin: bottom;
+            transform: rotate(20deg);
+        }
+        
+        .bow-string-pulled::after {
+            bottom: 0;
+            height: calc(50% - 5px);
+            transform-origin: top;
+            transform: rotate(-20deg);
+        }
+        
+        /* Arrow styling */
+        .arrow {
+            position: absolute;
+            left: calc(10% + 60px);
+            top: 50%;
+            width: 180px;
+            height: 10px;
+            opacity: 1;
+            transform: translateY(-50%);
+            z-index: 10;
+        }
+        
+        .arrow-shaft {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #9ca3af, #d1d5db);
+            position: absolute;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        
+        .arrow-head {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 25px solid #94a3b8;
+            border-top: 12px solid transparent;
+            border-bottom: 12px solid transparent;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
+        }
+        
+        .arrow-feather {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+        }
+        
+        .feather {
+            position: absolute;
+            width: 25px;
+            height: 15px;
+            background-color: #ef4444;
+            transform-origin: left center;
+        }
+        
+        .feather-top {
+            top: -15px;
+            left: 5px;
+            transform: rotate(-30deg);
+            clip-path: polygon(0 100%, 100% 0, 100% 100%);
+        }
+        
+        .feather-bottom {
+            bottom: -15px;
+            left: 5px;
+            transform: rotate(30deg);
+            clip-path: polygon(0 0, 100% 0, 100% 100%);
+        }
+        
+        /* Target styling */
+        .target {
+            position: absolute;
+            right: 15%;
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle,
+                #dc2626 0%, #dc2626 10%,
+                #f9fafb 10%, #f9fafb 30%,
+                #dc2626 30%, #dc2626 50%,
+                #f9fafb 50%, #f9fafb 70%,
+                #dc2626 70%, #dc2626 90%,
+                #f9fafb 90%, #f9fafb 100%
+            );
+            border: 8px solid #1f2937;
+            box-shadow: 0 0 30px rgba(220, 38, 38, 0.3);
+        }
+        
+        .bullseye {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background-color: #dc2626;
+            z-index: 2;
+        }
+        
+        .target-stand {
+            position: absolute;
+            bottom: -150px;
+            left: 50%;
+            width: 20px;
+            height: 150px;
+            background: linear-gradient(to right, #4b5563, #6b7280, #4b5563);
+            transform: translateX(-50%);
+        }
+        
+        /* Arrow stuck in target */
+        .arrow-stuck {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-100%, -50%);
+            width: 100px;
+            height: 10px;
+            opacity: 0;
+            z-index: 3;
+        }
+        
+        .arrow-stuck .arrow-shaft {
+            background: linear-gradient(90deg, #9ca3af, #d1d5db);
+        }
+        
+        .arrow-stuck .arrow-head {
+            border-left-color: #94a3b8;
+        }
+        
+        /* Impact effects */
+        .impact-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 2px solid #ef4444;
+            opacity: 0;
+        }
+        
+        /* Arrow trajectory visualization */
+        .trajectory {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.2;
+        }
+        
+        .trajectory-dots {
+            fill: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Status indicators */
+        .status-indicator {
+            position: fixed;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            font-size: 1.2rem;
+            color: #f8fafc;
+            opacity: 0.8;
+            z-index: 100;
+        }
+        
+        .scroll-percentage {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="animation-container">
+        <!-- Bow -->
+        <div class="bow-container" id="bow-container">
+            <div class="bow" id="bow">
+                <div class="bow-body"></div>
+                <div class="bow-string" id="bow-string"></div>
+                <div class="bow-string-pulled" id="bow-string-pulled"></div>
+            </div>
+        </div>
+        
+        <!-- Arrow (flying) -->
+        <div class="arrow" id="arrow">
+            <div class="arrow-shaft"></div>
+            <div class="arrow-head"></div>
+            <div class="arrow-feather">
+                <div class="feather feather-top"></div>
+                <div class="feather feather-bottom"></div>
+            </div>
+        </div>
+        
+        <!-- Target -->
+        <div class="target" id="target">
+            <div class="bullseye"></div>
+            <div class="target-stand"></div>
+            
+            <!-- Arrow stuck in target -->
+            <div class="arrow-stuck" id="arrow-stuck">
+                <div class="arrow-shaft"></div>
+                <div class="arrow-head"></div>
+                <div class="arrow-feather">
+                    <div class="feather feather-top"></div>
+                    <div class="feather feather-bottom"></div>
+                </div>
+            </div>
+            
+            <!-- Impact rings -->
+            <div class="impact-ring" id="impact-ring-1"></div>
+            <div class="impact-ring" id="impact-ring-2"></div>
+            <div class="impact-ring" id="impact-ring-3"></div>
+        </div>
+        
+        <!-- Trajectory visualization with dots -->
+        <svg class="trajectory" id="trajectory" width="100%" height="100%" viewBox="0 0 1920 1080">
+            <path id="motion-path" d="M300,540 C700,450 1200,500 1600,540" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
+            <g id="path-dots"></g>
+        </svg>
+    </div>
+    
+    <div class="status-indicator" id="status">Scroll down to draw the bow</div>
+    <div class="scroll-percentage" id="scroll-percentage">0%</div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Register GSAP plugins
+            gsap.registerPlugin(ScrollTrigger);
+            
+            // Create dots along the path for better visualization
+            const pathDots = document.getElementById('path-dots');
+            const motionPath = document.getElementById('motion-path');
+            const pathLength = motionPath.getTotalLength();
+            const numberOfDots = 20;
+            
+            for (let i = 0; i < numberOfDots; i++) {
+                const ratio = i / (numberOfDots - 1);
+                const point = motionPath.getPointAtLength(ratio * pathLength);
+                
+                const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                dot.setAttribute("cx", point.x);
+                dot.setAttribute("cy", point.y);
+                dot.setAttribute("r", "4");
+                dot.setAttribute("class", "trajectory-dots");
+                dot.setAttribute("opacity", "0");
+                dot.id = `dot-${i}`;
+                pathDots.appendChild(dot);
+            }
+            
+            // Show percentage during scroll
+            ScrollTrigger.create({
+                trigger: "body",
+                start: "top top",
+                end: "bottom bottom",
+                onUpdate: (self) => {
+                    const percentage = Math.round(self.progress * 100);
+                    document.getElementById('scroll-percentage').innerText = `${percentage}%`;
+                }
+            });
+            
+            // Create the main animation timeline
+            const mainTimeline = gsap.timeline({
+                scrollTrigger: {
+                    trigger: "body",
+                    start: "top top",
+                    end: "bottom bottom",
+                    scrub: 1.5, // Increased for smoother animation
+                    onUpdate: function(self) {
+                        // Update status messages based on scroll position
+                        const statusElem = document.getElementById('status');
+                        
+                        if (self.progress < 0.2) {
+                            statusElem.innerText = "Scroll down to draw the bow";
+                        } else if (self.progress < 0.4) {
+                            statusElem.innerText = "Keep scrolling to aim";
+                        } else if (self.progress < 0.6) {
+                            statusElem.innerText = "Almost there...";
+                        } else if (self.progress < 0.8) {
+                            statusElem.innerText = "Release!";
+                        } else {
+                            statusElem.innerText = "Bullseye! Scroll back up to try again";
+                        }
+                    }
+                }
+            });
+            
+            // 1. Draw the bow (0-20% of scroll)
+            mainTimeline
+                // Show trajectory path gradually
+                .to('#trajectory', {
+                    opacity: 0.5,
+                    duration: 0.5,
+                    ease: 'power1.in'
+                }, 0)
+                
+                // Show trajectory dots one by one
+                .to('.trajectory-dots', {
+                    opacity: 0.7,
+                    stagger: 0.05,
+                    duration: 0.2,
+                    ease: 'power1.in'
+                }, 0.2)
+                
+                // Pull back bow string (creates drawn bow effect)
+                .to('#bow-string', {
+                    opacity: 0,
+                    duration: 0.3,
+                    ease: 'power1.out'
+                }, 0.2)
+                
+                .to('#bow-string-pulled', {
+                    opacity: 1,
+                    duration: 0.3,
+                    ease: 'power1.in'
+                }, 0.2)
+                
+                // Draw bow arrow back (moves arrow back as bow is drawn)
+                .to('#arrow', {
+                    x: -30,
+                    duration: 0.5,
+                    ease: 'power1.inOut'
+                }, 0.2);
+            
+            // 2. Aiming phase (20-50% of scroll)
+            mainTimeline
+                // Slight bow movement to simulate aiming
+                .to('#bow-container', {
+                    rotate: -5,
+                    y: -10,
+                    duration: 1,
+                    ease: 'power1.inOut'
+                }, 1)
+                
+                // Anticipation - very slight movement before release
+                .to('#arrow', {
+                    y: "-=5",
+                    duration: 0.5,
+                    ease: 'power1.inOut'
+                }, 1.5);
+            
+            // 3. Arrow release and flight (50-90% of scroll)
+            mainTimeline
+                // Release bow string (back to normal state)
+                .to('#bow-string-pulled', {
+                    opacity: 0,
+                    duration: 0.1,
+                    ease: 'power1.out'
+                }, 2)
+                
+                .to('#bow-string', {
+                    opacity: 1,
+                    duration: 0.1,
+                    ease: 'power1.in'
+                }, 2)
+                
+                // Arrow flight along motion path
+                .to('#arrow', {
+                    motionPath: {
+                        path: '#motion-path',
+                        align: '#motion-path',
+                        alignOrigin: [0.5, 0.5],
+                        autoRotate: true,
+                    },
+                    ease: 'power1.inOut',
+                    duration: 2
+                }, 2)
+                
+                // Hide flying arrow when it reaches target
+                .to('#arrow', {
+                    opacity: 0,
+                    duration: 0.1
+                }, 4)
+                
+                // Show arrow stuck in target
+                .to('#arrow-stuck', {
+                    opacity: 1,
+                    scale: 1,
+                    duration: 0.1
+                }, 4.1);
+            
+            // 4. Impact effects (90-100% of scroll)
+            mainTimeline
+                // Target reaction
+                .to('#target', {
+                    scale: 1.1,
+                    duration: 0.2,
+                    ease: 'back.out(2)'
+                }, 4.1)
+                
+                // Impact rings
+                .to('#impact-ring-1', {
+                    opacity: 0.8,
+                    width: '50px',
+                    height: '50px',
+                    duration: 0.3,
+                    onComplete: () => {
+                        gsap.to('#impact-ring-1', {
+                            opacity: 0,
+                            duration: 0.3
+                        });
+                    }
+                }, 4.2)
+                
+                .to('#impact-ring-2', {
+                    opacity: 0.6,
+                    width: '80px',
+                    height: '80px',
+                    duration: 0.4,
+                    delay: 0.1,
+                    onComplete: () => {
+                        gsap.to('#impact-ring-2', {
+                            opacity: 0,
+                            duration: 0.4
+                        });
+                    }
+                }, 4.2)
+                
+                .to('#impact-ring-3', {
+                    opacity: 0.4,
+                    width: '120px',
+                    height: '120px',
+                    duration: 0.5,
+                    delay: 0.2,
+                    onComplete: () => {
+                        gsap.to('#impact-ring-3', {
+                            opacity: 0,
+                            duration: 0.5
+                        });
+                    }
+                }, 4.2)
+                
+                // Target returns to normal
+                .to('#target', {
+                    scale: 1,
+                    duration: 0.5,
+                    ease: 'elastic.out(1, 0.3)'
+                }, 4.5);
+            
+            // Reset function for when user scrolls back up
+            ScrollTrigger.create({
+                trigger: "body",
+                start: "top+=100 top",
+                onLeaveBack: () => {
+                    // Reset arrow position
+                    gsap.set('#arrow', {
+                        x: 0,
+                        y: 0,
+                        rotation: 0,
+                        opacity: 1,
+                        clearProps: "x,y,rotation" // Clear transforms
+                    });
+                    
+                    // Hide stuck arrow
+                    gsap.set('#arrow-stuck', {
+                        opacity: 0
+                    });
+                    
+                    // Reset bow
+                    gsap.set('#bow-container', {
+                        rotate: 0,
+                        y: 0,
+                        clearProps: "rotate,y" // Clear transforms
+                    });
+                    
+                    // Reset strings
+                    gsap.set('#bow-string', {
+                        opacity: 1
+                    });
+                    
+                    gsap.set('#bow-string-pulled', {
+                        opacity: 0
+                    });
+                    
+                    // Hide impact rings
+                    gsap.set([
+                        '#impact-ring-1',
+                        '#impact-ring-2',
+                        '#impact-ring-3'
+                    ], {
+                        opacity: 0,
+                        width: '10px',
+                        height: '10px'
+                    });
+                    
+                    // Reset target
+                    gsap.set('#target', {
+                        scale: 1,
+                        clearProps: "scale" // Clear transforms
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
